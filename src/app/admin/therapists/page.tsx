@@ -26,8 +26,18 @@ import {
 export default function AdminTherapistDirectoryPage() {
   const [therapists, setTherapists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('ALL');
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok && res.headers.get('content-type')?.includes('application/json') ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {});
+  }, []);
   const [toastMessage, setToastMessage] = useState('');
   const [selectedTherapistModal, setSelectedTherapistModal] = useState<any | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -176,10 +186,18 @@ export default function AdminTherapistDirectoryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800">
-      <Sidebar role="ADMIN" />
+      <Sidebar
+        role="ADMIN"
+        userName={user?.name || 'Clinical Admin System'}
+        userEmail={user?.email || 'admin@rehab.com'}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
-        <TopNavbar title="Therapist Directory" subtitle="Clinical Staff & Licensed Practitioners" />
+        <TopNavbar
+          user={user || { name: 'Clinical Admin System', role: 'ADMIN' }}
+          title="Therapist Directory"
+          subtitle="Clinical Staff & Licensed Practitioners"
+        />
 
         <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Toast Notification */}

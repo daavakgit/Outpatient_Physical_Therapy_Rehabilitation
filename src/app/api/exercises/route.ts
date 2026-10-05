@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getExercises, createExercise } from '@/services/exerciseService';
-import { exerciseSchema } from '@/lib/validations';
 import { getSession } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -19,17 +18,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session || (session.role !== 'THERAPIST' && session.role !== 'ADMIN')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (session && session.role === 'PATIENT') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const body = await req.json();
-    const parsed = exerciseSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Validation error' }, { status: 400 });
+    if (!body.name) {
+      return NextResponse.json({ error: 'Exercise name is required' }, { status: 400 });
     }
 
-    const exercise = await createExercise(parsed.data);
+    const exercise = await createExercise(body);
     return NextResponse.json({ exercise }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

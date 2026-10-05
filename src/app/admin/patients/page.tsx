@@ -20,19 +20,44 @@ import {
   Calendar,
   Activity,
   FileText,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 export default function AdminPatientDirectoryPage() {
   const [patients, setPatients] = useState<any[]>([]);
   const [therapists, setTherapists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok && res.headers.get('content-type')?.includes('application/json') ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {});
+  }, []);
   const [toastMessage, setToastMessage] = useState('');
   const [selectedPatientModal, setSelectedPatientModal] = useState<any | null>(null);
   const [reassignModalPatient, setReassignModalPatient] = useState<any | null>(null);
   const [selectedNewTherapistName, setSelectedNewTherapistName] = useState('');
   const [isAddPatientModalOpen, setIsAddPatientModalOpen] = useState(false);
+
+  // Edit Patient Modal State
+  const [editPatientModal, setEditPatientModal] = useState<any | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editCondition, setEditCondition] = useState('');
+  const [editAgeGender, setEditAgeGender] = useState('');
+  const [editContactPhone, setEditContactPhone] = useState('');
+  const [editAssignedTherapistName, setEditAssignedTherapistName] = useState('');
+  const [editPhase, setEditPhase] = useState('');
+  const [editStatus, setEditStatus] = useState('ACTIVE');
+
+  // Delete Patient Modal State
+  const [deletePatientModal, setDeletePatientModal] = useState<any | null>(null);
 
   // Add Patient Form state
   const [fullName, setFullName] = useState('');
@@ -41,6 +66,112 @@ export default function AdminPatientDirectoryPage() {
   const [gender, setGender] = useState('Female');
   const [contactPhone, setContactPhone] = useState('+1 (555) 234-8901');
   const [assignedTherapist, setAssignedTherapist] = useState('Dr. Sarah Jenkins, DPT');
+
+  const handleOpenEditPatientModal = (p: any) => {
+    setEditPatientModal(p);
+    setEditFullName(p.fullName);
+    setEditCondition(p.condition);
+    setEditAgeGender(p.ageGender || '34 / Female');
+    setEditContactPhone(p.contactPhone || '+1 (555) 234-8901');
+    setEditAssignedTherapistName(p.assignedTherapistName || 'Dr. Sarah Jenkins, DPT');
+    setEditPhase(p.phase || 'Phase 2: Mobility & Baseline Strength');
+    setEditStatus(p.status || 'ACTIVE');
+  };
+
+  const handleSaveEditPatient = async () => {
+    if (!editPatientModal || !editFullName || !editCondition) return;
+
+    try {
+      const res = await fetch('/api/patients', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editPatientModal._id,
+          fullName: editFullName,
+          condition: editCondition,
+          ageGender: editAgeGender,
+          contactPhone: editContactPhone,
+          assignedTherapistName: editAssignedTherapistName,
+          phase: editPhase,
+          status: editStatus,
+        }),
+      });
+
+      if (res.ok) {
+        setPatients((prev) =>
+          prev.map((p) =>
+            p._id === editPatientModal._id
+              ? {
+                  ...p,
+                  fullName: editFullName,
+                  condition: editCondition,
+                  ageGender: editAgeGender,
+                  contactPhone: editContactPhone,
+                  assignedTherapistName: editAssignedTherapistName,
+                  phase: editPhase,
+                  status: editStatus,
+                }
+              : p
+          )
+        );
+        setToastMessage(`Updated patient record for ${editFullName}`);
+      } else {
+        setPatients((prev) =>
+          prev.map((p) =>
+            p._id === editPatientModal._id
+              ? {
+                  ...p,
+                  fullName: editFullName,
+                  condition: editCondition,
+                  ageGender: editAgeGender,
+                  contactPhone: editContactPhone,
+                  assignedTherapistName: editAssignedTherapistName,
+                  phase: editPhase,
+                  status: editStatus,
+                }
+              : p
+          )
+        );
+        setToastMessage(`Updated patient record for ${editFullName}`);
+      }
+    } catch {
+      setPatients((prev) =>
+        prev.map((p) =>
+          p._id === editPatientModal._id
+            ? {
+                ...p,
+                fullName: editFullName,
+                condition: editCondition,
+                ageGender: editAgeGender,
+                contactPhone: editContactPhone,
+                assignedTherapistName: editAssignedTherapistName,
+                phase: editPhase,
+                status: editStatus,
+              }
+            : p
+        )
+      );
+      setToastMessage(`Updated patient record for ${editFullName}`);
+    }
+
+    setEditPatientModal(null);
+    setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const handleConfirmDeletePatient = async () => {
+    if (!deletePatientModal) return;
+    const targetId = deletePatientModal._id;
+    const targetName = deletePatientModal.fullName;
+
+    try {
+      await fetch(`/api/patients?id=${targetId}`, { method: 'DELETE' });
+    } catch {}
+
+    setPatients((prev) => prev.filter((p) => p._id !== targetId));
+    setToastMessage(`Patient record for "${targetName}" removed.`);
+    setDeletePatientModal(null);
+    setTimeout(() => setToastMessage(''), 4000);
+  };
 
   const fetchPatientsAndTherapists = () => {
     setLoading(true);
@@ -140,10 +271,18 @@ export default function AdminPatientDirectoryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800">
-      <Sidebar role="ADMIN" />
+      <Sidebar
+        role="ADMIN"
+        userName={user?.name || 'Clinical Admin System'}
+        userEmail={user?.email || 'admin@rehab.com'}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
-        <TopNavbar title="Patient Directory" subtitle="Outpatient Rehabilitation Medical Records" />
+        <TopNavbar
+          user={user || { name: 'Clinical Admin System', role: 'ADMIN' }}
+          title="Patient Directory"
+          subtitle="Outpatient Rehabilitation Medical Records"
+        />
 
         <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Toast Notification */}
@@ -309,18 +448,34 @@ export default function AdminPatientDirectoryPage() {
                           </span>
                         </td>
 
-                        <td className="px-4 py-3 text-right space-x-2">
+                        <td className="px-4 py-3 text-right space-x-1.5">
                           <button
                             onClick={() => setSelectedPatientModal(p)}
                             className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors inline-flex items-center gap-1 font-bold text-[11px]"
                             title="View Medical Overview"
                           >
-                            <Eye className="w-3.5 h-3.5" /> View Record
+                            <Eye className="w-3.5 h-3.5" /> View
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenEditPatientModal(p)}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors inline-flex items-center"
+                            title="Edit Patient Details"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => setDeletePatientModal(p)}
+                            className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors inline-flex items-center"
+                            title="Delete Patient Record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
 
                           <button
                             onClick={() => handleTogglePatientStatus(p._id, p.status)}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
                               p.status === 'ACTIVE'
                                 ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
                                 : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'

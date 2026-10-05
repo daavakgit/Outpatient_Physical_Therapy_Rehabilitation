@@ -3,6 +3,9 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IExerciseSession extends Document {
   patientId: mongoose.Types.ObjectId;
   exerciseId: mongoose.Types.ObjectId;
+  exerciseAssignmentId?: mongoose.Types.ObjectId;
+  therapistId?: mongoose.Types.ObjectId;
+  rehabilitationPlanId?: mongoose.Types.ObjectId;
   exerciseName: string;
   startTime: Date;
   endTime?: Date;
@@ -13,6 +16,8 @@ export interface IExerciseSession extends Document {
   completedRepetitions: number;
   pauseDuration: number; // pause time in seconds
   status: 'STARTED' | 'PAUSED' | 'COMPLETED' | 'CANCELLED' | 'PARTIALLY_COMPLETED';
+  painLevel?: number;
+  difficulty?: 'Easy' | 'Moderate' | 'Hard';
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -22,6 +27,9 @@ const ExerciseSessionSchema = new Schema<IExerciseSession>(
   {
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true },
     exerciseId: { type: Schema.Types.ObjectId, ref: 'Exercise', required: true },
+    exerciseAssignmentId: { type: Schema.Types.ObjectId, ref: 'ExerciseAssignment' },
+    therapistId: { type: Schema.Types.ObjectId, ref: 'Therapist' },
+    rehabilitationPlanId: { type: Schema.Types.ObjectId, ref: 'RehabilitationPlan' },
     exerciseName: { type: String, required: true },
     startTime: { type: Date, required: true },
     endTime: { type: Date },
@@ -36,6 +44,8 @@ const ExerciseSessionSchema = new Schema<IExerciseSession>(
       enum: ['STARTED', 'PAUSED', 'COMPLETED', 'CANCELLED', 'PARTIALLY_COMPLETED'],
       default: 'STARTED',
     },
+    painLevel: { type: Number, min: 0, max: 10, default: 0 },
+    difficulty: { type: String, enum: ['Easy', 'Moderate', 'Hard'], default: 'Moderate' },
     notes: { type: String },
   },
   { timestamps: true }

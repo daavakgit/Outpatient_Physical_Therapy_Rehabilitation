@@ -45,15 +45,30 @@ export default function TherapistPatientProfilePage({ params }: { params: Promis
 
   const [patientData, setPatientData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'medical' | 'plan' | 'sessions' | 'milestones' | 'notes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'medical' | 'plan' | 'sessions' | 'milestones' | 'notes'>('overview');
+  const [assignments, setAssignments] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
-  const [notesList, setNotesList] = useState([
+  const [notesList, setNotesList] = useState<any[]>([
     { id: 1, author: 'Dr. Sarah Jenkins, PT', date: '2026-09-28', text: 'Patient reported mild lateral tightness during TKE. Reduced resistance band tension by 10%.' },
     { id: 2, author: 'Dr. Sarah Jenkins, PT', date: '2026-09-20', text: 'Achieved 110 degrees flexion without extension lag. Quadriceps activation symmetrical at 85% LSI.' }
   ]);
 
   useEffect(() => {
-    fetch('/api/patients/dashboard')
+    fetch(`/api/assignments?patientId=${encodeURIComponent(patientId)}`)
+      .then((res) => {
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) return res.json();
+        return null;
+      })
+      .then((d) => {
+        if (d?.assignments) {
+          setAssignments(d.assignments);
+        }
+      })
+      .catch(() => {});
+  }, [patientId]);
+
+  useEffect(() => {
+    fetch(`/api/patients/dashboard?patientId=${encodeURIComponent(patientId)}`)
       .then((res) => {
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) return res.json();
         return null;
@@ -88,7 +103,24 @@ export default function TherapistPatientProfilePage({ params }: { params: Promis
     );
   }
 
-  const patient = patientData?.patient || {
+  const patient = patientData?.patient ? {
+    _id: patientData.patient._id || patientId,
+    fullName: patientData.patient.fullName || 'Patient',
+    mrn: patientData.patient.mrn || `MRN-${(patientData.patient._id || patientId).toString().slice(-5).toUpperCase()}`,
+    age: patientData.patient.age || 30,
+    gender: patientData.patient.gender || 'Male',
+    condition: patientData.patient.condition || 'Post-Op Rehabilitation',
+    phase: patientData.patient.phase || patientData.plan?.currentPhase || 'Phase 1: Mobility',
+    adherence: patientData.patient.adherence ?? 90,
+    status: patientData.patient.status || 'ACTIVE',
+    email: patientData.patient.email || (typeof patientData.patient.userId === 'object' ? patientData.patient.userId?.email : null) || 'patient@rehabtrack.com',
+    phone: patientData.patient.phone || (typeof patientData.patient.userId === 'object' ? patientData.patient.userId?.phone : null) || '+1 (555) 234-5678',
+    startDate: patientData.patient.startDate ? new Date(patientData.patient.startDate).toISOString().split('T')[0] : '2026-08-15',
+    primaryTherapist: typeof patientData.patient.primaryTherapistId === 'object' && patientData.patient.primaryTherapistId?.fullName
+      ? patientData.patient.primaryTherapistId.fullName
+      : patientData.patient.primaryTherapist || 'Dr. Sarah Jenkins, PT',
+    targetROM: patientData.patient.targetROM || '0° Extension / 125° Flexion',
+  } : {
     _id: patientId,
     fullName: 'Alex Morgan',
     mrn: 'MRN-84920',
@@ -225,6 +257,7 @@ export default function TherapistPatientProfilePage({ params }: { params: Promis
           <div className="flex overflow-x-auto border-b border-slate-200 bg-white px-4 rounded-xl border">
             {[
               { id: 'overview', label: 'Clinical Overview', icon: Activity },
+              { id: 'assignments', label: 'Assigned Exercises', icon: Dumbbell },
               { id: 'medical', label: 'Medical & ROM', icon: ShieldCheck },
               { id: 'plan', label: 'Rehab Plan', icon: FileText },
               { id: 'sessions', label: 'Session History', icon: Clock },
@@ -248,6 +281,93 @@ export default function TherapistPatientProfilePage({ params }: { params: Promis
               );
             })}
           </div>
+
+          {/* TAB: ASSIGNED EXERCISES */}
+          {activeTab === 'assignments' && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+                <div>
+                  <h2 className="font-bold text-slate-900 text-lg">Patient-Specific Exercise Prescriptions</h2>
+                  <p className="text-xs text-slate-500">Customized exercise assignments for {patient.fullName}</p>
+                </div>
+                <Link
+                  href="/therapist/exercises"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Assign New Exercise</span>
+                </Link>
+              </div>
+
+              {assignments.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 space-y-3">
+                  <Dumbbell className="w-10 h-10 text-slate-400 mx-auto" />
+                  <p className="font-bold text-slate-800 text-sm">No Active Exercise Assignments</p>
+                  <p className="text-xs text-slate-500">Assign targeted exercises from the clinical library.</p>
+                  <Link
+                    href="/therapist/exercises"
+                    className="inline-block px-4 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-teal-700"
+                  >
+                    Open Exercise Library
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {assignments.map((ass: any) => {
+                    const ex = typeof ass.exerciseId === 'object' ? ass.exerciseId : {};
+                    return (
+                      <div key={ass._id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 flex flex-col justify-between">
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={ex.imageUrl || 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=600&q=80'}
+                              alt={ex.name || 'Exercise'}
+                              className="w-16 h-16 rounded-xl object-cover border border-slate-200 flex-shrink-0"
+                            />
+                            <div>
+                              <span className="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[10px] font-bold">
+                                {ass.phaseName || 'Phase 2'}
+                              </span>
+                              <h3 className="font-extrabold text-slate-900 text-sm leading-tight mt-1">{ex.name || 'Targeted Exercise'}</h3>
+                              <p className="text-[11px] text-slate-500">{ex.category || 'Mobility'} • {ex.targetArea || 'Knee'}</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                            <div className="p-2 bg-white rounded-xl border border-slate-200">
+                              <span className="text-[10px] text-slate-400 block font-bold">Prescription</span>
+                              <span className="font-bold text-slate-900">{ass.sets} Sets × {ass.repetitions} Reps</span>
+                            </div>
+                            <div className="p-2 bg-white rounded-xl border border-slate-200">
+                              <span className="text-[10px] text-slate-400 block font-bold">Frequency</span>
+                              <span className="font-bold text-slate-900">{ass.frequencyDaysPerWeek} Days/Wk</span>
+                            </div>
+                            <div className="p-2 bg-white rounded-xl border border-slate-200">
+                              <span className="text-[10px] text-slate-400 block font-bold">Hold / Rest</span>
+                              <span className="font-bold text-slate-900">{ass.holdDurationSeconds}s / {ass.restDurationSeconds}s</span>
+                            </div>
+                          </div>
+
+                          {ass.therapistNotes && (
+                            <p className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-100 italic">
+                              &ldquo;{ass.therapistNotes}&rdquo;
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/60">
+                          <span className="text-slate-500 font-medium">Assigned: {ass.startDate ? new Date(ass.startDate).toISOString().split('T')[0] : 'Active'}</span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[10px] font-bold border border-teal-200">
+                            {ass.status || 'ACTIVE'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
@@ -293,13 +413,13 @@ export default function TherapistPatientProfilePage({ params }: { params: Promis
                             0{idx + 1}
                           </div>
                           <div>
-                            <h3 className="font-bold text-slate-900 text-xs">{ex.name}</h3>
-                            <p className="text-[11px] text-slate-500">ROM: {ex.rom}</p>
+                            <h3 className="font-bold text-slate-900 text-xs">{ex.name || ex.exerciseName}</h3>
+                            <p className="text-[11px] text-slate-500">ROM: {ex.rom || ex.notes || 'Full extension'}</p>
                           </div>
                         </div>
                         <div className="text-right text-xs">
                           <span className="font-bold text-slate-800">{ex.targetSets} Sets × {ex.targetReps} Reps</span>
-                          <span className="block text-[10px] text-slate-400">Rest: {ex.rest}</span>
+                          <span className="block text-[10px] text-slate-400">Rest: {ex.rest || '45s'}</span>
                         </div>
                       </div>
                     ))}

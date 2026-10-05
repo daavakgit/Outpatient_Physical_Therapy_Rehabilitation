@@ -22,8 +22,16 @@ import {
 export default function AdminSystemInfoPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok && res.headers.get('content-type')?.includes('application/json') ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {});
+
     fetch('/api/admin/stats')
       .then((res) => {
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) return res.json();
@@ -38,10 +46,18 @@ export default function AdminSystemInfoPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800">
-      <Sidebar role="ADMIN" />
+      <Sidebar
+        role="ADMIN"
+        userName={user?.name || 'Clinical Admin System'}
+        userEmail={user?.email || 'admin@rehab.com'}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
-        <TopNavbar title="System Information" subtitle="Platform Infrastructure & Infrastructure Health Monitor" />
+        <TopNavbar
+          user={user || { name: 'Clinical Admin System', role: 'ADMIN' }}
+          title="System Information"
+          subtitle="Platform Infrastructure & Infrastructure Health Monitor"
+        />
 
         <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* PAGE HEADER HERO */}

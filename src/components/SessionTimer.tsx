@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Play, Pause, Square, CheckCircle2, RotateCcw, Dumbbell, Clock, AlertCircle } from 'lucide-react';
+import { Play, Pause, CheckCircle2, Dumbbell, ShieldAlert, Award, Sparkles, Activity } from 'lucide-react';
 
 interface SessionTimerProps {
   exercise: {
@@ -13,13 +13,18 @@ interface SessionTimerProps {
     restDurationSeconds: number;
     instructions?: string[];
   };
+  exerciseAssignmentId?: string;
   sessionId?: string;
 }
 
-export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId: initialSessionId }) => {
+export const SessionTimer: React.FC<SessionTimerProps> = ({
+  exercise,
+  exerciseAssignmentId,
+  sessionId: initialSessionId,
+}) => {
   const router = useRouter();
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null);
-  const [status, setStatus] = useState<'IDLE' | 'RUNNING' | 'PAUSED' | 'RESTING' | 'COMPLETED'>('IDLE');
+  const [status, setStatus] = useState<'IDLE' | 'RUNNING' | 'PAUSED' | 'RESTING' | 'SUMMARY'>('IDLE');
   const [seconds, setSeconds] = useState<number>(0);
   const [pauseSeconds, setPauseSeconds] = useState<number>(0);
 
@@ -27,9 +32,14 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
   const [completedSets, setCompletedSets] = useState<number>(0);
   const [completedReps, setCompletedReps] = useState<number>(0);
 
-  const [restCountdown, setRestCountdown] = useState<number>(exercise.restDurationSeconds);
+  const [restCountdown, setRestCountdown] = useState<number>(exercise.restDurationSeconds || 30);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Summary Feedback State
+  const [painLevel, setPainLevel] = useState<number>(2);
+  const [difficultyRating, setDifficultyRating] = useState<'Easy' | 'Moderate' | 'Hard'>('Moderate');
   const [notes, setNotes] = useState<string>('');
+  const [isSaved, setIsSaved] = useState<boolean>(false);
 
   // Main Timer Interval
   useEffect(() => {
@@ -47,7 +57,7 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
         setRestCountdown((prev) => {
           if (prev <= 1) {
             setStatus('RUNNING');
-            return exercise.restDurationSeconds;
+            return exercise.restDurationSeconds || 30;
           }
           return prev - 1;
         });
@@ -66,6 +76,9 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
         body: JSON.stringify({
           action: 'START',
           exerciseId: exercise._id,
+          exerciseAssignmentId,
+          targetSets: exercise.targetSets,
+          targetReps: exercise.targetReps,
         }),
       });
       const data = await res.json();
@@ -75,6 +88,7 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
       }
     } catch (e) {
       console.error(e);
+      setStatus('RUNNING');
     } finally {
       setIsSubmitting(false);
     }
@@ -82,7 +96,10 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
 
   // Pause Session API Call
   const handlePause = async () => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setStatus('PAUSED');
+      return;
+    }
     setStatus('PAUSED');
     await fetch('/api/sessions', {
       method: 'POST',
@@ -93,12 +110,15 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
         completedSets,
         completedRepetitions: completedReps,
       }),
-    });
+    }).catch(() => {});
   };
 
   // Resume Session API Call
   const handleResume = async () => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setStatus('RUNNING');
+      return;
+    }
     setStatus('RUNNING');
     await fetch('/api/sessions', {
       method: 'POST',
@@ -108,7 +128,7 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
         sessionId,
         additionalPauseSeconds: pauseSeconds,
       }),
-    });
+    }).catch(() => {});
   };
 
   // Complete a Set
@@ -119,16 +139,21 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
     setCompletedReps(nextCompletedReps);
 
     if (nextCompletedSets >= exercise.targetSets) {
-      handleFinishSession(nextCompletedSets, nextCompletedReps);
+      setStatus('SUMMARY');
     } else {
       setCurrentSet(nextCompletedSets + 1);
-      setRestCountdown(exercise.restDurationSeconds);
+      setRestCountdown(exercise.restDurationSeconds || 30);
       setStatus('RESTING');
     }
   };
 
-  // Finish/End Session API Call
-  const handleFinishSession = async (finalSets = completedSets, finalReps = completedReps) => {
+  // End Session Early or Prompt Summary
+  const triggerSummary = () => {
+    setStatus('SUMMARY');
+  };
+
+  // Finish/End Session API Call with Feedback
+  const handleFinalSaveSession = async () => {
     setIsSubmitting(true);
     try {
       if (sessionId) {
@@ -138,15 +163,21 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
           body: JSON.stringify({
             action: 'END',
             sessionId,
-            completedSets: finalSets,
-            completedRepetitions: finalReps,
+            completedSets,
+            completedRepetitions: completedReps,
             notes,
+            painLevel,
+            difficulty: difficultyRating,
           }),
         });
       }
-      setStatus('COMPLETED');
+      setIsSaved(true);
+      setTimeout(() => {
+        router.push('/patient/dashboard');
+      }, 1500);
     } catch (e) {
       console.error(e);
+      router.push('/patient/dashboard');
     } finally {
       setIsSubmitting(false);
     }
@@ -158,23 +189,26 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const totalTargetReps = exercise.targetSets * exercise.targetReps;
+  const completionPercentage = Math.round((completedSets / exercise.targetSets) * 100);
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Session Container */}
-      <div className="glacier-card p-6 md:p-8 text-center relative overflow-hidden border-2 border-brand-100 shadow-xl">
+      {/* Session Card */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 text-center relative overflow-hidden shadow-2xl">
         {/* Status Indicator Bar */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-6 bg-brand-50 text-brand-700 border border-brand-200">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-6 bg-slate-800 text-teal-400 border border-slate-700">
           <span
             className={`w-2 h-2 rounded-full ${
               status === 'RUNNING'
-                ? 'bg-emerald-500 animate-ping'
+                ? 'bg-teal-400 animate-ping'
                 : status === 'PAUSED'
-                ? 'bg-amber-500'
+                ? 'bg-amber-400'
                 : status === 'RESTING'
-                ? 'bg-purple-500 animate-bounce'
-                : status === 'COMPLETED'
-                ? 'bg-teal-500'
-                : 'bg-slate-400'
+                ? 'bg-purple-400 animate-bounce'
+                : status === 'SUMMARY'
+                ? 'bg-teal-400'
+                : 'bg-slate-500'
             }`}
           />
           <span>
@@ -186,45 +220,48 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
               ? 'Session Paused'
               : status === 'RESTING'
               ? `Rest Period (${restCountdown}s)`
-              : 'Session Completed!'}
+              : 'Session Completion Feedback'}
           </span>
         </div>
 
         {/* Large Timer Display */}
-        <div className="my-4">
-          <div className="text-6xl md:text-7xl font-extrabold text-slate-900 tracking-tight font-mono">
-            {formatTime(seconds)}
-          </div>
-          <p className="text-xs text-slate-500 mt-2 font-medium">Active Session Duration</p>
-        </div>
+        {status !== 'SUMMARY' && (
+          <>
+            <div className="my-4">
+              <div className="text-6xl md:text-7xl font-black text-white tracking-tight font-mono">
+                {formatTime(seconds)}
+              </div>
+              <p className="text-xs text-slate-400 mt-2 font-medium">Active Session Duration</p>
+            </div>
 
-        {/* Set & Rep Progress Badges */}
-        <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto my-6 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-          <div>
-            <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider block">Set Progress</span>
-            <div className="text-2xl font-extrabold text-brand-700 mt-0.5">
-              {completedSets} <span className="text-sm font-normal text-slate-400">/ {exercise.targetSets}</span>
+            {/* Set & Rep Progress Badges */}
+            <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto my-6 p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
+              <div>
+                <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider block">Set Progress</span>
+                <div className="text-2xl font-extrabold text-teal-400 mt-0.5">
+                  {completedSets} <span className="text-sm font-normal text-slate-500">/ {exercise.targetSets}</span>
+                </div>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider block">Completed Reps</span>
+                <div className="text-2xl font-extrabold text-[#0c9488] mt-0.5">
+                  {completedReps} <span className="text-sm font-normal text-slate-500">/ {totalTargetReps}</span>
+                </div>
+              </div>
             </div>
-          </div>
-          <div>
-            <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider block">Completed Reps</span>
-            <div className="text-2xl font-extrabold text-teal-700 mt-0.5">
-              {completedReps}{' '}
-              <span className="text-sm font-normal text-slate-400">/ {exercise.targetSets * exercise.targetReps}</span>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* Action Controls */}
-        <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
+        <div className="flex flex-wrap items-center justify-center gap-4 mt-6">
           {status === 'IDLE' && (
             <button
               onClick={handleStart}
               disabled={isSubmitting}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-base shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-base shadow-lg transition-all flex items-center justify-center gap-3"
             >
               <Play className="w-5 h-5 fill-current" />
-              <span>Begin Session</span>
+              <span>Begin Guided Session</span>
             </button>
           )}
 
@@ -240,7 +277,7 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
 
               <button
                 onClick={handlePause}
-                className="px-5 py-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 font-semibold text-sm transition-all flex items-center justify-center gap-2"
+                className="px-5 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold text-sm transition-all flex items-center justify-center gap-2 border border-slate-700"
               >
                 <Pause className="w-5 h-5" />
                 <span>Pause</span>
@@ -252,75 +289,151 @@ export const SessionTimer: React.FC<SessionTimerProps> = ({ exercise, sessionId:
             <>
               <button
                 onClick={handleResume}
-                className="px-8 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                className="px-8 py-3.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
               >
                 <Play className="w-5 h-5 fill-current" />
                 <span>Resume Session</span>
               </button>
 
               <button
-                onClick={() => handleFinishSession()}
-                className="px-6 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-all"
+                onClick={triggerSummary}
+                className="px-6 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-all border border-slate-700"
               >
-                End Session Early
+                End & Save Session
               </button>
             </>
           )}
 
           {status === 'RESTING' && (
-            <div className="w-full p-4 bg-purple-50 border border-purple-200 rounded-2xl text-purple-900 font-semibold text-sm">
-              Take a breather! Rest timer counting down: <strong className="text-lg">{restCountdown}s</strong>
+            <div className="w-full p-4 bg-teal-950/80 border border-teal-800 rounded-2xl text-teal-200 font-semibold text-sm space-y-2">
+              <p>Rest timer active: <strong className="text-xl text-teal-400">{restCountdown}s</strong></p>
               <button
                 onClick={() => setStatus('RUNNING')}
-                className="block mx-auto mt-2 text-xs font-bold text-purple-700 underline"
+                className="text-xs font-bold text-teal-400 underline hover:text-teal-300"
               >
-                Skip Rest & Continue
+                Skip Rest & Start Next Set
               </button>
             </div>
           )}
 
-          {status === 'COMPLETED' && (
-            <div className="w-full space-y-4 animate-in fade-in">
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900">
-                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
-                <h3 className="font-bold text-lg">Great Job! Exercise Session Recorded</h3>
-                <p className="text-xs text-emerald-700 mt-1">
-                  Completed {completedSets} sets ({completedReps} repetitions) in {formatTime(seconds)}.
-                </p>
+          {/* SUMMARY MODAL / SCREEN */}
+          {status === 'SUMMARY' && (
+            <div className="w-full space-y-6 text-left animate-in fade-in">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center mx-auto border border-teal-500/40">
+                  <Award className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-extrabold text-white">Session Completed Summary</h3>
+                <p className="text-xs text-slate-400">Review metrics and provide post-exercise clinical feedback</p>
               </div>
 
+              {/* STATS METRICS GRID */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">Duration</span>
+                  <span className="font-extrabold text-white text-base block mt-0.5">{formatTime(seconds)}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">Sets Done</span>
+                  <span className="font-extrabold text-teal-400 text-base block mt-0.5">{completedSets} / {exercise.targetSets}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">Reps Done</span>
+                  <span className="font-extrabold text-teal-400 text-base block mt-0.5">{completedReps} / {totalTargetReps}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase">Completion</span>
+                  <span className="font-extrabold text-purple-400 text-base block mt-0.5">{completionPercentage}%</span>
+                </div>
+              </div>
+
+              {/* PAIN SCORE RATING (VAS 0 - 10) */}
+              <div className="space-y-2 p-4 bg-slate-950 rounded-2xl border border-slate-800">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="font-bold text-white flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 text-red-400" />
+                    <span>Post-Exercise Pain Rating (VAS Scale 0–10)</span>
+                  </label>
+                  <span className="font-black text-sm text-red-400">{painLevel} / 10</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value={painLevel}
+                  onChange={(e) => setPainLevel(Number(e.target.value))}
+                  className="w-full accent-red-500 cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500 font-semibold">
+                  <span>0 - No Pain</span>
+                  <span>5 - Moderate</span>
+                  <span>10 - Severe Pain</span>
+                </div>
+              </div>
+
+              {/* PERCEIVED DIFFICULTY RATING */}
+              <div className="space-y-2 p-4 bg-slate-950 rounded-2xl border border-slate-800">
+                <label className="font-bold text-white text-xs block">Perceived Exercise Difficulty</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Easy', 'Moderate', 'Hard'] as const).map((diff) => (
+                    <button
+                      key={diff}
+                      type="button"
+                      onClick={() => setDifficultyRating(diff)}
+                      className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                        difficultyRating === diff
+                          ? 'bg-teal-600 text-white border-teal-500 shadow-md'
+                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                      }`}
+                    >
+                      {diff}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* PATIENT NOTES */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 text-left mb-1">
-                  Therapist Feedback / Self Notes (Optional)
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Session Observations / Therapist Notes
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="How did this set feel? Any tightness or pain?"
-                  className="w-full p-3 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-brand-500 outline-none"
+                  placeholder="Record any joint tightness, fatigue, or sensations during exercise..."
+                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-600 focus:ring-2 focus:ring-teal-500 outline-none"
                   rows={2}
                 />
               </div>
 
-              <button
-                onClick={() => router.push('/patient/dashboard')}
-                className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-md"
-              >
-                Return to Patient Dashboard
-              </button>
+              {isSaved ? (
+                <div className="p-4 bg-teal-500/20 border border-teal-500/40 rounded-2xl text-center text-teal-300 font-bold text-xs flex items-center justify-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                  <span>Session Audit Saved Successfully! Redirecting to Dashboard...</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleFinalSaveSession}
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-lg transition-all"
+                >
+                  {isSubmitting ? 'Saving Session Record...' : 'Confirm & Save Session Record'}
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Exercise Instructions Accordion */}
-      {exercise.instructions && exercise.instructions.length > 0 && (
-        <div className="glacier-card p-6">
-          <h4 className="font-bold text-slate-900 text-sm mb-3 flex items-center gap-2">
-            <Dumbbell className="w-4 h-4 text-brand-600" />
-            <span>Step-by-Step Instructions</span>
+      {/* Step-by-Step Instructions */}
+      {exercise.instructions && exercise.instructions.length > 0 && status !== 'SUMMARY' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-left space-y-3">
+          <h4 className="font-bold text-white text-sm flex items-center gap-2">
+            <Dumbbell className="w-4 h-4 text-teal-400" />
+            <span>Clinical Execution Instructions</span>
           </h4>
-          <ol className="space-y-2 list-decimal list-inside text-xs text-slate-600 leading-relaxed">
+          <ol className="space-y-2 list-decimal list-inside text-xs text-slate-300 leading-relaxed">
             {exercise.instructions.map((step, idx) => (
               <li key={idx} className="pl-1">
                 {step}

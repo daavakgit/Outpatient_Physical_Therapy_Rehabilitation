@@ -56,10 +56,18 @@ export default function AdminProfilePage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800">
-      <Sidebar role="ADMIN" />
+      <Sidebar
+        role="ADMIN"
+        userName={user?.name || name || 'Clinical Admin System'}
+        userEmail={user?.email || email || 'admin@rehab.com'}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
-        <TopNavbar title="Administrator Profile" subtitle="Account Settings & Security Credentials" />
+        <TopNavbar
+          user={user || { name: name || 'Clinical Admin System', role: 'ADMIN' }}
+          title="Administrator Profile"
+          subtitle="Account Settings & Security Credentials"
+        />
 
         <main className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Toast Notification */}

@@ -1,0 +1,139 @@
+{
+  "exercises": [],
+  "assignments": [
+    {
+      "_id": "assign_1791189419103",
+      "id": "assign_1791189419103",
+      "exerciseId": {
+        "_id": "6ac361999baf5fe481742a79",
+        "name": "asf",
+        "category": "Balance",
+        "difficulty": "Intermediate",
+        "targetArea": "Knee",
+        "recommendedSets": 3,
+        "recommendedReps": 10,
+        "holdDurationSeconds": 3,
+        "restDurationSeconds": 30,
+        "description": "ksfkmakms",
+        "instructions": [
+          "Perform exercise with controlled cadence."
+        ],
+        "safetyNotes": "Stop immediately if pain exceeds 4/10 VAS.",
+        "imageUrl": "/uploads/ex_1791189394194_bxzb8.jpeg",
+        "createdAt": "2026-10-05T08:36:41.843Z",
+        "updatedAt": "2026-10-05T08:36:41.843Z",
+        "__v": 0
+      },
+      "patientId": "6abe1d2747e8e1ea146cf9ef",
+      "therapistId": "tp_1",
+      "phaseName": "Phase 2: Strength Development",
+      "sets": 3,
+      "repetitions": 10,
+      "frequencyDaysPerWeek": 5,
+      "holdDurationSeconds": 3,
+      "restDurationSeconds": 30,
+      "startDate": "2026-10-05",
+      "endDate": "2026-10-07",
+      "therapistNotes": "Prescribed exercise: asf",
+      "status": "ACTIVE",
+      "createdAt": "2026-10-05T08:36:59.103Z"
+    },
+    {
+      "_id": "assign_1791189350795",
+      "id": "assign_1791189350795",
+      "exerciseId": {
+        "_id": "6ac341b36fc6ed2e141d3597",
+        "name": "jskd",
+        "category": "Balance",
+        "difficulty": "Beginner",
+        "targetArea": "Knee",
+        "recommendedSets": 3,
+        "recommendedReps": 10,
+        "holdDurationSeconds": 3,
+        "restDurationSeconds": 30,
+        "description": "ysdfio",
+        "instructions": [
+          "dgkj"
+        ],
+        "safetyNotes": ";ksgs",
+        "createdAt": "2026-10-05T06:20:35.178Z",
+        "updatedAt": "2026-10-05T06:20:35.178Z",
+        "__v": 0
+      },
+      "patientId": "6abe1d2747e8e1ea146cf9ef",
+      "therapistId": "tp_1",
+      "phaseName": "Phase 2: Strength Development",
+      "sets": 3,
+      "repetitions": 10,
+      "frequencyDaysPerWeek": 5,
+      "holdDurationSeconds": 3,
+      "restDurationSeconds": 30,
+      "startDate": "2026-10-05",
+      "therapistNotes": "Prescribed exercise: jskd",
+      "status": "ACTIVE",
+      "createdAt": "2026-10-05T08:35:50.795Z"
+    }
+  ],
+  "patients": [],
+  "sessions": [],
+  "plans": [
+    {
+      "_id": "plan_1791189480852",
+      "id": "plan_1791189480852",
+      "patientId": "6abe1d2747e8e1ea146cf9ef",
+      "patientName": "deva",
+      "title": "asfmkfka",
+      "startDate": "2026-10-05",
+      "expectedDurationWeeks": 10,
+      "currentPhase": "Phase 4: Return to Sport Clearance",
+      "overallCompletionPercentage": 0,
+      "status": "ACTIVE",
+      "exercisesCount": 2,
+      "therapistNotes": "panuu",
+      "exercises": [
+        {
+          "name": "Knee Extension Isometric Hold",
+          "targetSets": 3,
+          "targetReps": 10,
+          "rest": "45s"
+        },
+        {
+          "name": "Terminal Knee Extension (TKE)",
+          "targetSets": 2,
+          "targetReps": 15,
+          "rest": "30s"
+        }
+      ],
+      "createdAt": "2026-10-05T08:38:00.852Z",
+      "updatedAt": "2026-10-05T08:38:00.852Z"
+    }
+  ],
+  "milestones": [
+    {
+      "_id": "ms_1",
+      "patientId": "pat_1",
+      "patientName": "Alex Morgan",
+      "title": "Full Active Knee Extension (0°)",
+      "category": "Mobility",
+      "targetDate": "2026-10-15",
+      "status": "COMPLETED",
+      "notes": "Achieved 0 degrees active extension without lag on goniometer.",
+      "createdAt": "2026-10-05T06:19:57.150Z"
+    }
+  ],
+  "appointments": [
+    {
+      "_id": "app_1",
+      "patientId": "pat_1",
+      "patientName": "Alex Morgan",
+      "therapistName": "Dr. Sarah Jenkins, DPT",
+      "appointmentDate": "2026-10-06T06:19:57.150Z",
+      "appointmentType": "In-Clinic Progress Evaluation",
+      "status": "SCHEDULED",
+      "location": "Main Rehab Clinic, Suite 300",
+      "notes": "Evaluate quad peak force and knee ROM progression.",
+      "createdAt": "2026-10-05T06:19:57.151Z"
+    }
+  ],
+  "notifications": []
+}

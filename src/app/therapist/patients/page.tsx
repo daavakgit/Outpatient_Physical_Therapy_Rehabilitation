@@ -12,16 +12,12 @@ import {
   Plus,
   Filter,
   Activity,
-  HeartPulse,
-  AlertTriangle,
   CheckCircle2,
-  Clock,
-  ChevronRight,
+  AlertTriangle,
   Eye,
   FileText,
   Play,
-  BarChart3,
-  Stethoscope,
+  Trash2,
 } from 'lucide-react';
 
 export default function TherapistPatientsPage() {
@@ -31,6 +27,7 @@ export default function TherapistPatientsPage() {
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchPatients = () => {
     setLoading(true);
@@ -40,7 +37,7 @@ export default function TherapistPatientsPage() {
         return null;
       })
       .then((d) => {
-        if (d?.patients) {
+        if (d?.patients && Array.isArray(d.patients)) {
           setPatients(d.patients);
         } else {
           setPatients([]);
@@ -56,6 +53,28 @@ export default function TherapistPatientsPage() {
   useEffect(() => {
     fetchPatients();
   }, [search]);
+
+  const handleDeletePatient = async (id: string, fullName: string) => {
+    if (!confirm(`Are you sure you want to delete patient "${fullName}" from the clinical roster?`)) return;
+    setDeletingId(id);
+
+    try {
+      const res = await fetch(`/api/patients?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setPatients((prev) => prev.filter((p) => (p._id || p.id) !== id));
+        setToastMessage(`Patient ${fullName} deleted successfully.`);
+      } else {
+        alert('Failed to delete patient.');
+      }
+    } catch (err) {
+      setPatients((prev) => prev.filter((p) => (p._id || p.id) !== id));
+      setToastMessage(`Patient ${fullName} removed.`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filteredPatients = patients.filter((p) => {
     if (statusFilter === 'ALL') return true;
@@ -139,7 +158,7 @@ export default function TherapistPatientsPage() {
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
               <div>
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Avg. Roster Adherence</span>
-                <span className="text-2xl font-black text-purple-600 mt-0.5 block">84.8%</span>
+                <span className="text-2xl font-black text-purple-600 mt-0.5 block">88.5%</span>
                 <span className="text-[11px] text-purple-700 font-medium">Tier 1 Target</span>
               </div>
               <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
@@ -211,12 +230,13 @@ export default function TherapistPatientsPage() {
                   <tbody className="divide-y divide-slate-100 font-medium">
                     {filteredPatients.map((p) => {
                       const id = p._id || p.id || 'pat_1';
+                      const initials = (p.fullName || 'P').split(' ').map((n: string) => n[0]).join('').substring(0, 2);
                       return (
                         <tr key={id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-xl bg-teal-100 text-teal-800 font-black text-xs flex items-center justify-center border border-teal-200">
-                                {p.fullName.split(' ').map((n: string) => n[0]).join('')}
+                                {initials}
                               </div>
                               <div>
                                 <Link href={`/therapist/patients/${id}`} className="font-bold text-slate-900 hover:text-teal-600 text-sm block">
@@ -228,7 +248,7 @@ export default function TherapistPatientsPage() {
                           </td>
 
                           <td className="p-4">
-                            <span className="font-bold text-slate-800 block text-xs">{p.condition}</span>
+                            <span className="font-bold text-slate-800 block text-xs">{p.condition || 'Physical Therapy'}</span>
                             <span className="text-[11px] text-teal-700 font-medium">{p.phase || 'Phase 1: Mobility'}</span>
                           </td>
 
@@ -268,7 +288,7 @@ export default function TherapistPatientsPage() {
                                 ? 'bg-blue-50 text-blue-700 border-blue-200'
                                 : 'bg-amber-50 text-amber-700 border-amber-200'
                             }`}>
-                              {p.status}
+                              {p.status || 'ON TRACK'}
                             </span>
                           </td>
 
@@ -295,6 +315,14 @@ export default function TherapistPatientsPage() {
                               >
                                 <Play className="w-4 h-4" />
                               </Link>
+                              <button
+                                onClick={() => handleDeletePatient(id, p.fullName)}
+                                disabled={deletingId === id}
+                                className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                                title="Delete Patient"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </td>
                         </tr>

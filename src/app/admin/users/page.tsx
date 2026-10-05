@@ -20,11 +20,14 @@ import {
   AlertTriangle,
   UserCheck,
   UserX,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 export default function AdminUserDirectoryPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -32,10 +35,102 @@ export default function AdminUserDirectoryPage() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [selectedUserDetail, setSelectedUserDetail] = useState<any | null>(null);
 
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok && res.headers.get('content-type')?.includes('application/json') ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Edit User Modal State
+  const [editUserModal, setEditUserModal] = useState<any | null>(null);
+  const [editUserName, setEditUserName] = useState('');
+  const [editUserEmail, setEditUserEmail] = useState('');
+  const [editUserRole, setEditUserRole] = useState<'PATIENT' | 'THERAPIST' | 'ADMIN'>('PATIENT');
+  const [editUserStatus, setEditUserStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
+
+  // Delete User Modal State
+  const [deleteUserModal, setDeleteUserModal] = useState<any | null>(null);
+
   // Add User Form State
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<'PATIENT' | 'THERAPIST' | 'ADMIN'>('PATIENT');
+
+  const handleOpenEditModal = (u: any) => {
+    setEditUserModal(u);
+    setEditUserName(u.name);
+    setEditUserEmail(u.email);
+    setEditUserRole(u.role);
+    setEditUserStatus(u.status || 'ACTIVE');
+  };
+
+  const handleSaveEditUser = async () => {
+    if (!editUserModal || !editUserName || !editUserEmail) return;
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editUserModal._id,
+          name: editUserName,
+          email: editUserEmail,
+          role: editUserRole,
+          status: editUserStatus,
+        }),
+      });
+
+      if (res.ok) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u._id === editUserModal._id
+              ? { ...u, name: editUserName, email: editUserEmail, role: editUserRole, status: editUserStatus }
+              : u
+          )
+        );
+        setToastMessage(`Updated user details for ${editUserName}`);
+      } else {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u._id === editUserModal._id
+              ? { ...u, name: editUserName, email: editUserEmail, role: editUserRole, status: editUserStatus }
+              : u
+          )
+        );
+        setToastMessage(`Updated user details for ${editUserName}`);
+      }
+    } catch {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u._id === editUserModal._id
+            ? { ...u, name: editUserName, email: editUserEmail, role: editUserRole, status: editUserStatus }
+            : u
+        )
+      );
+      setToastMessage(`Updated user details for ${editUserName}`);
+    }
+
+    setEditUserModal(null);
+    setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!deleteUserModal) return;
+    const targetId = deleteUserModal._id;
+    const targetName = deleteUserModal.name;
+
+    try {
+      await fetch(`/api/admin/users?id=${targetId}`, { method: 'DELETE' });
+    } catch {}
+
+    setUsers((prev) => prev.filter((u) => u._id !== targetId));
+    setToastMessage(`User "${targetName}" removed from system directory.`);
+    setDeleteUserModal(null);
+    setTimeout(() => setToastMessage(''), 4000);
+  };
 
   const fetchUsers = () => {
     setLoading(true);
@@ -158,10 +253,18 @@ export default function AdminUserDirectoryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800">
-      <Sidebar role="ADMIN" />
+      <Sidebar
+        role="ADMIN"
+        userName={user?.name || 'Clinical Admin System'}
+        userEmail={user?.email || 'admin@rehab.com'}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
-        <TopNavbar title="User Directory" subtitle="System User Management & Access Control" />
+        <TopNavbar
+          user={user || { name: 'Clinical Admin System', role: 'ADMIN' }}
+          title="User Directory"
+          subtitle="System User Management & Access Control"
+        />
 
         <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Toast Notification */}
@@ -348,18 +451,34 @@ export default function AdminUserDirectoryPage() {
                           {u.lastActive ? new Date(u.lastActive).toLocaleDateString() : 'Recent'}
                         </td>
 
-                        <td className="px-4 py-3 text-right space-x-2">
+                        <td className="px-4 py-3 text-right space-x-1.5">
                           <button
                             onClick={() => setSelectedUserDetail(u)}
-                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                            className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors inline-flex items-center"
                             title="View User Details"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
 
                           <button
+                            onClick={() => handleOpenEditModal(u)}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors inline-flex items-center"
+                            title="Edit User Directory Details"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => setDeleteUserModal(u)}
+                            className="p-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors inline-flex items-center"
+                            title="Delete User from System Directory"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
                             onClick={() => handleResetPassword(u.email)}
-                            className="p-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+                            className="p-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors inline-flex items-center"
                             title="Trigger Password Reset"
                           >
                             <Key className="w-3.5 h-3.5" />
@@ -367,7 +486,7 @@ export default function AdminUserDirectoryPage() {
 
                           <button
                             onClick={() => handleToggleStatus(u._id, u.status)}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
                               u.status === 'ACTIVE'
                                 ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
                                 : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'
@@ -505,6 +624,137 @@ export default function AdminUserDirectoryPage() {
                 className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800"
               >
                 Close Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT USER MODAL */}
+      {editUserModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Pencil className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900">Edit User Details</h2>
+                  <p className="text-xs text-slate-500 font-medium">Update account properties for system user</p>
+                </div>
+              </div>
+              <button onClick={() => setEditUserModal(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={editUserName}
+                  onChange={(e) => setEditUserName(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 font-medium outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  placeholder="e.g. Dr. Sarah Jenkins"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={editUserEmail}
+                  onChange={(e) => setEditUserEmail(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 font-medium outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  placeholder="e.g. sarah@rehab.com"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">System Role</label>
+                  <select
+                    value={editUserRole}
+                    onChange={(e: any) => setEditUserRole(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 font-medium outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  >
+                    <option value="PATIENT">PATIENT</option>
+                    <option value="THERAPIST">THERAPIST</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Status</label>
+                  <select
+                    value={editUserStatus}
+                    onChange={(e: any) => setEditUserStatus(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 font-medium outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
+              <button
+                onClick={() => setEditUserModal(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditUser}
+                className="px-4 py-2 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 shadow-md transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE USER CONFIRMATION MODAL */}
+      {deleteUserModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">Delete User Account?</h2>
+                <p className="text-xs text-slate-500 font-medium">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-rose-50/50 rounded-2xl border border-rose-100 text-xs text-rose-900 space-y-1">
+              <p className="font-bold">Target User:</p>
+              <p><span className="font-medium text-slate-600">Name:</span> {deleteUserModal.name}</p>
+              <p><span className="font-medium text-slate-600">Email:</span> {deleteUserModal.email}</p>
+              <p><span className="font-medium text-slate-600">Role:</span> {deleteUserModal.role}</p>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Are you sure you want to permanently delete this user account from the system directory?
+            </p>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
+              <button
+                onClick={() => setDeleteUserModal(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteUser}
+                className="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 shadow-md transition-colors"
+              >
+                Confirm Delete
               </button>
             </div>
           </div>

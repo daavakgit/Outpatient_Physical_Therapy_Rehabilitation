@@ -11,6 +11,7 @@ function LiveSessionContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const exerciseId = searchParams.get('exerciseId') || '67f1a8c9e4b0123456789012';
+  const assignmentId = searchParams.get('assignmentId') || undefined;
 
   const [exercise, setExercise] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -22,7 +23,6 @@ function LiveSessionContent() {
         if (data.exercise) {
           setExercise(data.exercise);
         } else {
-          // Default fallback exercise if not found
           setExercise({
             _id: exerciseId,
             name: 'Quad Sets with Towel Roll',
@@ -68,6 +68,9 @@ function LiveSessionContent() {
     );
   }
 
+  const targetSets = exercise.recommendedSets || exercise.targetSets || 3;
+  const targetReps = exercise.recommendedReps || exercise.targetReps || 10;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-6 md:p-8">
       {/* Top Header */}
@@ -80,7 +83,7 @@ function LiveSessionContent() {
           <span>Exit Session</span>
         </button>
 
-        <div className="flex items-center gap-2 text-brand-400 font-bold text-sm">
+        <div className="flex items-center gap-2 text-teal-400 font-bold text-sm">
           <HeartPulse className="w-5 h-5 text-teal-400" />
           <span>RehabPulse Live Session</span>
         </div>
@@ -94,7 +97,7 @@ function LiveSessionContent() {
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-2">{exercise.name}</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Target: <strong>{exercise.targetSets || 3} sets</strong> of <strong>{exercise.targetReps || 10} repetitions</strong>
+            Target: <strong>{targetSets} sets</strong> of <strong>{targetReps} repetitions</strong>
           </p>
         </div>
 
@@ -102,11 +105,12 @@ function LiveSessionContent() {
           exercise={{
             _id: exercise._id,
             name: exercise.name,
-            targetSets: exercise.recommendedSets || exercise.targetSets || 3,
-            targetReps: exercise.recommendedReps || exercise.targetReps || 10,
+            targetSets,
+            targetReps,
             restDurationSeconds: exercise.restDurationSeconds || 45,
             instructions: exercise.instructions,
           }}
+          exerciseAssignmentId={assignmentId}
         />
       </main>
 

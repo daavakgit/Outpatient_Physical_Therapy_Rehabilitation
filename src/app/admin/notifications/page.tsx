@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { TopNavbar } from '@/components/TopNavbar';
 import { MobileNavbar } from '@/components/MobileNavbar';
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminNotificationsPage() {
+  const [user, setUser] = useState<any>(null);
   const [notifications, setNotifications] = useState([
     {
       id: 'n1',
@@ -76,6 +77,15 @@ export default function AdminNotificationsPage() {
     },
   ]);
 
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok && res.headers.get('content-type')?.includes('application/json') ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {});
+  }, []);
+
   const [activeTab, setActiveTab] = useState('ALL');
 
   const handleMarkAllRead = () => {
@@ -96,10 +106,18 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800">
-      <Sidebar role="ADMIN" />
+      <Sidebar
+        role="ADMIN"
+        userName={user?.name || 'Clinical Admin System'}
+        userEmail={user?.email || 'admin@rehab.com'}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
-        <TopNavbar title="System Alerts & Notifications" subtitle="Admin System Feed" />
+        <TopNavbar
+          user={user || { name: 'Clinical Admin System', role: 'ADMIN' }}
+          title="System Alerts & Notifications"
+          subtitle="Admin System Feed"
+        />
 
         <main className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* PAGE HEADER */}

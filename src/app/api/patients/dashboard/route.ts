@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getPatientDashboardData } from '@/services/patientService';
+import { connectToDatabase } from '@/lib/db';
+import { Patient } from '@/models/Patient';
 
 export async function GET(req: Request) {
   try {
@@ -15,6 +17,16 @@ export async function GET(req: Request) {
     let patientId = session.patientId;
     if (session.role === 'THERAPIST' || session.role === 'ADMIN') {
       if (requestedPatientId) patientId = requestedPatientId;
+    }
+
+    if (!patientId && session.id) {
+      await connectToDatabase();
+      const dbPatient = await Patient.findOne({ userId: session.id });
+      if (dbPatient) {
+        patientId = dbPatient._id.toString();
+      } else {
+        patientId = session.id;
+      }
     }
 
     if (!patientId) {

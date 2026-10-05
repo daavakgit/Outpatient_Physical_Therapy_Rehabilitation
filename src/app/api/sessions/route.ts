@@ -36,12 +36,31 @@ export async function POST(req: Request) {
     if (!userSession) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { action, exerciseId, sessionId, completedSets, completedRepetitions, notes, additionalPauseSeconds } = body;
+    const {
+      action,
+      exerciseId,
+      exerciseAssignmentId,
+      targetSets,
+      targetReps,
+      sessionId,
+      completedSets,
+      completedRepetitions,
+      notes,
+      painLevel,
+      difficulty,
+      additionalPauseSeconds,
+    } = body;
 
     if (action === 'START') {
-      const patientId = userSession.patientId;
+      const patientId = userSession.patientId || body.patientId;
       if (!patientId) return NextResponse.json({ error: 'Patient profile not found' }, { status: 400 });
-      const sessionDoc = await startExerciseSession(patientId, exerciseId);
+      const sessionDoc = await startExerciseSession(
+        patientId,
+        exerciseId,
+        exerciseAssignmentId,
+        targetSets,
+        targetReps
+      );
       return NextResponse.json({ success: true, session: sessionDoc });
     }
 
@@ -56,7 +75,14 @@ export async function POST(req: Request) {
     }
 
     if (action === 'END') {
-      const sessionDoc = await endExerciseSession(sessionId, completedSets || 0, completedRepetitions || 0, notes);
+      const sessionDoc = await endExerciseSession(
+        sessionId,
+        completedSets || 0,
+        completedRepetitions || 0,
+        notes,
+        painLevel,
+        difficulty
+      );
       return NextResponse.json({ success: true, session: sessionDoc });
     }
 

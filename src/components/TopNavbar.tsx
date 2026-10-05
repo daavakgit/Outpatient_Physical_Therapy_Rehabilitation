@@ -16,20 +16,39 @@ interface TopNavbarProps {
 }
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({
-  user,
+  user: initialUser,
   title = 'Rehabilitation Portal',
   subtitle = 'Clinical Milestone & Recovery Dashboard',
   onMobileMenuToggle,
 }) => {
+  const [user, setUser] = useState<any>(initialUser || null);
   const [unreadCount, setUnreadCount] = useState<number>(2);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
 
   useEffect(() => {
+    if (initialUser) {
+      setUser(initialUser);
+    } else {
+      fetch('/api/auth/me')
+        .then((res) => {
+          if (res.ok && res.headers.get('content-type')?.includes('application/json')) return res.json();
+          return null;
+        })
+        .then((data) => {
+          if (data?.user) {
+            setUser(data.user);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialUser]);
+
+  useEffect(() => {
     fetch('/api/notifications')
       .then((res) => res.json())
       .then((data) => {
-        if (data.notifications) {
+        if (data?.notifications) {
           setNotifications(data.notifications);
           setUnreadCount(data.unreadCount || 0);
         }
@@ -47,8 +66,11 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
     setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
   };
 
+  const displayName = user?.name || user?.fullName || 'Authenticated User';
+  const displayRole = user?.role || 'PATIENT';
+
   return (
-    <header className="bg-white border-b border-glacier-border sticky top-0 z-20 shadow-sm">
+    <header className="bg-white border-b border-glacier-border sticky top-0 z-20 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Left Title & Mobile Toggle */}
         <div className="flex items-center gap-3">
@@ -70,7 +92,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* Right Actions & Profile */}
         <div className="flex items-center gap-3">
           {/* Quick Start Action if Patient */}
-          {user?.role === 'PATIENT' && (
+          {displayRole === 'PATIENT' && (
             <Link
               href="/patient/session/live?exerciseId=67f1a8c9e4b0123456789012"
               className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#006398] hover:bg-[#00476e] text-white text-xs font-bold transition-all shadow-xs"
@@ -143,12 +165,12 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           {/* User Role Badge */}
           <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
             <div className="w-8 h-8 rounded-full bg-brand-50 border border-brand-200 flex items-center justify-center text-brand-600 font-bold text-xs">
-              {user?.name ? user.name[0] : <UserIcon className="w-4 h-4" />}
+              {displayName ? displayName[0].toUpperCase() : <UserIcon className="w-4 h-4" />}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-xs font-semibold text-slate-800 leading-none">{user?.name || 'Alex Morgan'}</p>
+              <p className="text-xs font-semibold text-slate-800 leading-none">{displayName}</p>
               <span className="text-[10px] font-medium text-teal-600 uppercase tracking-wider">
-                {user?.role || 'PATIENT'}
+                {displayRole}
               </span>
             </div>
           </div>

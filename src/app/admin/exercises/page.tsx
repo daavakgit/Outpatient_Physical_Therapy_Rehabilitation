@@ -21,8 +21,18 @@ import {
 export default function AdminGlobalExercisesPage() {
   const [exercises, setExercises] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok && res.headers.get('content-type')?.includes('application/json') ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {});
+  }, []);
   const [difficultyFilter, setDifficultyFilter] = useState('ALL');
   const [toastMessage, setToastMessage] = useState('');
   const [selectedExerciseModal, setSelectedExerciseModal] = useState<any | null>(null);
@@ -203,10 +213,18 @@ export default function AdminGlobalExercisesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-800">
-      <Sidebar role="ADMIN" />
+      <Sidebar
+        role="ADMIN"
+        userName={user?.name || 'Clinical Admin System'}
+        userEmail={user?.email || 'admin@rehab.com'}
+      />
 
       <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
-        <TopNavbar title="Global Exercise Library" subtitle="Curated Physical Therapy Asset Catalog" />
+        <TopNavbar
+          user={user || { name: 'Clinical Admin System', role: 'ADMIN' }}
+          title="Global Exercise Library"
+          subtitle="Curated Physical Therapy Asset Catalog"
+        />
 
         <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {/* Toast Notification */}

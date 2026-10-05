@@ -91,7 +91,21 @@ export default function TherapistDashboard() {
   const therapist = data?.therapist;
   const dbPatients = data?.patients || [];
 
-  const defaultRoster: any[] = [];
+  const defaultRoster: any[] = dbPatients.map((p: any) => ({
+    id: p._id || p.id,
+    name: p.fullName,
+    mrn: p.mrn || `MRN-${p._id ? p._id.toString().slice(-5).toUpperCase() : '84920'}`,
+    age: p.age || 30,
+    condition: p.condition || 'Post-Op Rehabilitation',
+    phase: p.phase || 'Phase I: Initial Assessment',
+    adherence: p.adherence || 90,
+    lastSession: p.lastSession || 'Today, 8:15 AM',
+    lastSessionNotes: p.lastSessionNotes || 'Evaluation completed',
+    recoveryGoal: p.recoveryGoal || 75,
+    status: p.status || 'ON TRACK',
+    statusType: p.status === 'NEEDS ATTENTION' ? 'error' : 'success',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+  }));
 
   const allRosterPatients = [
     ...customPatients.map((p) => ({
@@ -594,7 +608,7 @@ export default function TherapistDashboard() {
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Link
-                            href="/therapist/patients"
+                            href={`/therapist/patients/${patient.id}`}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-[#006398] hover:bg-slate-100 transition-colors"
                             title="View Patient Profile"
                           >

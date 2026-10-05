@@ -22,6 +22,7 @@ import {
 
 export default function TherapistMilestonesPage() {
   const [milestones, setMilestones] = useState<any[]>([]);
+  const [patientList, setPatientList] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [patientFilter, setPatientFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
@@ -29,7 +30,7 @@ export default function TherapistMilestonesPage() {
   const [toastMessage, setToastMessage] = useState('');
 
   // Add Milestone Form state
-  const [patientName, setPatientName] = useState('Alex Morgan');
+  const [patientName, setPatientName] = useState('');
   const [milestoneName, setMilestoneName] = useState('');
   const [phaseName, setPhaseName] = useState('Phase 2: Mobility & Strength');
   const [targetDate, setTargetDate] = useState('2026-10-15');
@@ -103,8 +104,24 @@ export default function TherapistMilestonesPage() {
       .catch(() => setLoading(false));
   };
 
+  const fetchPatients = () => {
+    fetch('/api/patients')
+      .then((res) => {
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) return res.json();
+        return null;
+      })
+      .then((d) => {
+        if (d?.patients && d.patients.length > 0) {
+          setPatientList(d.patients);
+          setPatientName(d.patients[0].fullName);
+        }
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetchMilestones();
+    fetchPatients();
   }, []);
 
   const handleStatusChange = (id: string, newStatus: string) => {
@@ -381,9 +398,19 @@ export default function TherapistMilestonesPage() {
                   onChange={(e) => setPatientName(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-200 bg-white font-medium outline-none"
                 >
-                  <option value="Alex Morgan">Alex Morgan</option>
-                  <option value="Marcus Vance">Marcus Vance</option>
-                  <option value="Elena Rostova">Elena Rostova</option>
+                  {patientList.length > 0 ? (
+                    patientList.map((p) => (
+                      <option key={p._id || p.id} value={p.fullName}>
+                        {p.fullName} ({p.condition || 'Physical Therapy'})
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Alex Morgan">Alex Morgan</option>
+                      <option value="Marcus Vance">Marcus Vance</option>
+                      <option value="Elena Rostova">Elena Rostova</option>
+                    </>
+                  )}
                 </select>
               </div>
 
